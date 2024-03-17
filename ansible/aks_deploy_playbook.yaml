@@ -1,0 +1,42 @@
+---
+- name: Deploy Jenkins en AKS
+  hosts: vm
+  become: true
+  remote_user: adminUsername
+  vars_files:
+    - vars_global.yaml
+  tasks:
+    - name: Crear Deployment para Jenkins
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: jenkins-deployment
+            namespace: jenkins-namespace
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: jenkins
+            template:
+              metadata:
+                labels:
+                  app: jenkins
+              spec:
+                containers:
+                  - name: jenkins
+                    image: "{{ acr_server }}/nginx:casopractico2"
+                    ports:
+                    - name: http-port
+                      containerPort: 8080
+                    - name: jnlp-port
+                      containerPort: 50000  
+                    volumeMounts:
+                      - name: jenkins-data
+                        mountPath: /var/jenkins_home
+                volumes:
+                  - name: jenkins-data
+                    persistentVolumeClaim:
+                      claimName: jenkins-pvc

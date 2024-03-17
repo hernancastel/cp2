@@ -1,0 +1,4 @@
+vm:
+  hosts:
+    40.71.34.69       #Completar con el valor de salida de Terraform "vm_public_ip_adress"
+localhost:  

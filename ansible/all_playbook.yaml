@@ -1,0 +1,20 @@
+
+---
+- name: 'Ejecucion de playbook para el despliegue de Ansible Caso practico 2'
+  hosts: vm
+  remote_user: adminUsername
+  become: true
+  
+# Despliegue de webServer nginx en VM Azure
+
+- import_playbook: install_podman.yaml
+
+- import_playbook: webserver_acr_playbook.yaml
+
+- import_playbook: webserver_container_playbook.yaml
+
+# Configuacion Cluster de Kubernetes y Despliegue de Aplicacion Jenkins
+
+- import_playbook: aks_playbook.yaml
+
+- import_playbook: aks_deploy_playbook.yaml

@@ -1,0 +1,27 @@
+---
+- name: Subir imagen al ACR
+  hosts: vm
+  remote_user: adminUsername
+  gather_facts: no
+  vars_files:
+    - vars/vars_global.yaml
+
+  tasks:
+    - name: Pull Jenkins image
+      containers.podman.podman_image:
+        name: docker.io/jenkins/jenkins:latest 
+
+    - name: Tag Jenkins image
+      containers.podman.podman_tag:
+        image: docker.io/jenkins/jenkins:latest 
+        target_names:
+          - jenkins:casopractico2
+
+    - name: Push image ACR
+      containers.podman.podman_image:
+        name: jenkins:casopractico2
+        push: true
+        username: "{{ acr_username }}"
+        password: "{{ acr_password }}"
+        push_args:
+          dest:  "{{ acr_server }}"

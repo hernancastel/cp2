@@ -1,0 +1,120 @@
+---
+- name: Configuracion de componentes del Aks y Despliegue de Jenkins
+  hosts: vm
+  become: true
+  remote_user: adminUsername
+  vars_files:
+    - vars_global.yaml
+  tasks:
+    - name: Instalando AZ CLI
+      ansible.builtin.shell:
+        cmd: |
+          rpm --import https://packages.microsoft.com/keys/microsoft.asc
+          echo -e "[azure-cli]
+          name=Azure CLI
+          baseurl=https://packages.microsoft.com/yumrepos/azure-cli
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://packages.microsoft.com/keys/microsoft.asc" | sudo tee /etc/yum.repos.d/azure-cli.repo
+          sudo yum install azure-cli -y
+
+    - name: Az Login al  Service Principal
+      ansible.builtin.command:
+        cmd: az login --service-principal -u {{ client_id }} -p  {{ client_secret }} --tenant {{ tenant_id }}
+      become: true
+
+    - name: Az aks credentials
+      ansible.builtin.command:
+        cmd: az aks get-credentials --resource-group {{resource_group}} --name {{aks_name}}
+    
+    - name: Crear namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: jenkins-namespace
+    
+    - name: Crear el servicio de Jenkins
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: jenkins-service
+            namespace: jenkins-namespace
+          spec:
+            selector:
+              app: jenkins
+            ports:
+              - protocol: TCP
+                port: 8080
+                targetPort: 8080
+                nodePort: 30000
+            type: NodePort
+
+    - name: Crear el servicio Jenkins JNLP
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: service-jenkins-jnlp
+            namespace: jenkins-namespace
+          spec:
+            type: ClusterIP
+            ports:
+              - port: 30000
+                targetPort: 30000
+            selector:
+              app: jenkinsApp
+
+    - name: Configurar Ingress para Jenkins
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: jenkins-ingress
+            namespace: jenkins-namespace
+          spec:
+            rules:
+              - http:
+                  paths:
+                    - path: /jenkins
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: jenkins-service
+                          port:
+                            number: 8080
+
+    - name: Crear Service Account
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: jenkins-service-account
+            namespace: jenkins-namespace
+
+    - name: Crear PersistentVolumeClaim (PVC) para Jenkins
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: jenkins-pvc
+            namespace: jenkins-namespace
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi

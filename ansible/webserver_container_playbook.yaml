@@ -1,0 +1,41 @@
+---
+- name: Levantar imagen nginx como contenedor
+  hosts: vm
+  remote_user: adminUsername
+  gather_facts: no
+  vars_files:
+    - vars/vars_global.yaml
+  tasks:
+    - name: Autenticarse con el ACR
+      containers.podman.podman_login:
+        username: "{{ acr_username }}"
+        password: "{{ acr_password }}"
+        registry: "{{ acr_server }}"
+
+    - name: Levantar contenedor nginx
+      containers.podman.podman_container:
+        name: contenedor-nginx
+        image: "{{ acr_server }}/nginx:casopractico2"
+        state: started
+        ports: "8080:80"
+  
+    - name: Genero el archivo systemd del contenedor de nginx
+      ansible.builtin.command:
+        cmd: podman generate systemd --files --name contenedor-nginx
+    
+    - name: Copio el archivo container-nginx.service a la vm para luego utilizarlo como servicio. 
+      ansible.builtin.copy:
+        #remote_src: yes
+        #src:  "{{ playbook_dir }}/container-nginx.service"
+        src:  "/home/hcastel/cp2/ansible/container-nginx.service"
+        dest: /etc/systemd/system/container-nginx.service
+      become: yes
+
+
+    - name: Systemd recargar el demonio y habilitar el servidor web como un servicio
+      ansible.builtin.systemd:
+        daemon_reload: true     
+        name: container-nginx
+        enabled: true
+        state: started
+      become: yes

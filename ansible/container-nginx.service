@@ -1,0 +1,13 @@
+[Unit]
+Description=Contenedor Nginx Service
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/podman run --name contenedor-nginx -p 8080:80 acrCp2Castel.azurecr.io/nginx:casopractico2
+ExecStop=/usr/bin/podman stop -t 2 contenedor-nginx
+ExecStopPost=/usr/bin/podman rm -f contenedor-nginx
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+---
+- name: Instalar Podman en vm azure
+  hosts: vm
+  become: true
+  remote_user: adminUsername
+  tasks:
+    - name: Instalacion de Podman en vm
+      yum:
+        name: podman
+        state: present
